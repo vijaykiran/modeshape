@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.modeshape.common.i18n.I18n;
 import org.modeshape.common.util.FileUtil;
@@ -26,8 +27,12 @@ import org.modeshape.graph.JcrNtLexicon;
 import org.modeshape.graph.Location;
 import org.modeshape.graph.ModeShapeLexicon;
 import org.modeshape.graph.connector.RepositorySourceException;
+import org.modeshape.graph.connector.base.NodeCachingWorkspace;
 import org.modeshape.graph.connector.base.PathNode;
 import org.modeshape.graph.connector.base.PathWorkspace;
+import org.modeshape.graph.connector.base.cache.NodeCache;
+import org.modeshape.graph.connector.base.cache.NodeCachePolicy;
+import org.modeshape.graph.connector.base.cache.NodeCachePolicyChangedEvent;
 import org.modeshape.graph.mimetype.MimeTypeDetector;
 import org.modeshape.graph.property.Binary;
 import org.modeshape.graph.property.BinaryFactory;
@@ -48,14 +53,14 @@ import org.modeshape.graph.request.Request;
 /**
  * Workspace implementation for the file system connector.
  */
-class FileSystemWorkspace extends PathWorkspace<PathNode> {
+class FileSystemWorkspace extends PathWorkspace<PathNode> implements NodeCachingWorkspace<Path, PathNode> {
     private static final Map<Name, Property> NO_PROPERTIES = Collections.emptyMap();
     private static final String DEFAULT_MIME_TYPE = "application/octet";
     private static final Set<Name> VALID_PRIMARY_TYPES = new HashSet<Name>(Arrays.asList(new Name[] {JcrNtLexicon.FOLDER,
         JcrNtLexicon.FILE, JcrNtLexicon.RESOURCE, ModeShapeLexicon.RESOURCE}));
 
     private final FileSystemSource source;
-    private final FileSystemRepository repository;
+    protected final FileSystemRepository repository;
     private final ExecutionContext context;
     private final File workspaceRoot;
     private final boolean eagerLoading;
@@ -64,10 +69,14 @@ class FileSystemWorkspace extends PathWorkspace<PathNode> {
     private final ValueFactory<String> stringFactory;
     private final NameFactory nameFactory;
 
-    public FileSystemWorkspace( String name,
+    private NodeCache<Path, PathNode> cache;
+    private NodeCachePolicy<Path, PathNode> policy;
+
+    public FileSystemWorkspace( ExecutionContext context,
+                                String name,
                                 FileSystemWorkspace originalToClone,
                                 File workspaceRoot ) {
-        super(name, originalToClone.getRootNodeUuid());
+        super(context, name, originalToClone.getRootNodeUuid());
 
         this.source = originalToClone.source;
         this.context = originalToClone.context;
@@ -79,12 +88,15 @@ class FileSystemWorkspace extends PathWorkspace<PathNode> {
         this.stringFactory = context.getValueFactories().getStringFactory();
         this.nameFactory = context.getValueFactories().getNameFactory();
 
+        repository.source().addNodeCachePolicyChangedListener(this);
+
         cloneWorkspace(originalToClone);
     }
 
-    public FileSystemWorkspace( FileSystemRepository repository,
+    public FileSystemWorkspace( ExecutionContext context,
+                                FileSystemRepository repository,
                                 String name ) {
-        super(name, repository.getRootNodeUuid());
+        super(context, name, repository.getRootNodeUuid());
         this.workspaceRoot = repository.getWorkspaceDirectory(name);
         this.repository = repository;
         this.context = repository.getContext();
@@ -94,6 +106,8 @@ class FileSystemWorkspace extends PathWorkspace<PathNode> {
         this.logger = Logger.getLogger(getClass());
         this.stringFactory = context.getValueFactories().getStringFactory();
         this.nameFactory = context.getValueFactories().getNameFactory();
+
+        repository.source().addNodeCachePolicyChangedListener(this);
     }
 
     private void cloneWorkspace( FileSystemWorkspace original ) {
@@ -107,8 +121,25 @@ class FileSystemWorkspace extends PathWorkspace<PathNode> {
         }
     }
 
-    private void moveFile( File originalFileOrDirectory,
-                           File newFileOrDirectory ) {
+    /**
+     * Notifies this workspace that the cache policy has changed and the cache should be reset.
+     * 
+     * @param event the cache policy changed event; may not be null
+     */
+    @Override
+    public void cachePolicyChanged( NodeCachePolicyChangedEvent<Path, PathNode> event ) {
+        this.policy = event.getNewPolicy();
+        this.cache = policy.newCache();
+
+    }
+
+    @Override
+    public NodeCache<Path, PathNode> getCache() {
+        return cache;
+    }
+
+    protected void moveFile( File originalFileOrDirectory,
+                             File newFileOrDirectory ) {
         if (originalFileOrDirectory.renameTo(newFileOrDirectory)) return;
 
         /*
@@ -121,8 +152,8 @@ class FileSystemWorkspace extends PathWorkspace<PathNode> {
             FileUtil.delete(originalFileOrDirectory);
         } catch (IOException ioe) {
             throw new RepositorySourceException(FileSystemI18n.couldNotCopyData.text(source.getName(),
-                                                                                 originalFileOrDirectory.getAbsolutePath(),
-                                                                                 newFileOrDirectory.getAbsolutePath()), ioe);
+                                                                                     originalFileOrDirectory.getAbsolutePath(),
+                                                                                     newFileOrDirectory.getAbsolutePath()), ioe);
         }
 
     }
@@ -291,31 +322,24 @@ class FileSystemWorkspace extends PathWorkspace<PathNode> {
             }
 
             // Copy over data into a temp file, then move it to the correct location
-            FileOutputStream fos = null;
+
+            Property dataProp = properties.get(JcrLexicon.DATA);
+            BinaryFactory binaryFactory = context.getValueFactories().getBinaryFactory();
+            Binary binary = null;
+            if (dataProp == null) {
+                // There is no content, so make empty content ...
+                binary = binaryFactory.create(new byte[] {});
+                dataProp = context.getPropertyFactory().create(JcrLexicon.DATA, new Object[] {binary});
+            } else {
+                // Must read the value ...
+                binary = binaryFactory.create(properties.get(JcrLexicon.DATA).getFirstValue());
+            }
+
             try {
-                File temp = File.createTempFile("modeshape", null);
-                fos = new FileOutputStream(temp);
 
-                Property dataProp = properties.get(JcrLexicon.DATA);
-                BinaryFactory binaryFactory = context.getValueFactories().getBinaryFactory();
-                Binary binary = null;
-                if (dataProp == null) {
-                    // There is no content, so make empty content ...
-                    binary = binaryFactory.create(new byte[] {});
-                    dataProp = context.getPropertyFactory().create(JcrLexicon.DATA, new Object[] {binary});
-                } else {
-                    // Must read the value ...
-                    binary = binaryFactory.create(properties.get(JcrLexicon.DATA).getFirstValue());
-                }
-
-                IoUtil.write(binary.getStream(), fos);
-
-                if (!FileUtil.delete(parentFile)) {
-                    I18n msg = FileSystemI18n.deleteFailed;
-                    throw new RepositorySourceException(source.getName(), msg.text(parentPath, getName(), source.getName()));
-                }
-
-                moveFile(temp, parentFile);
+                PendingFile temp = new PendingFile(parentFile);
+                temp.write(binary);
+                temp.commit();
             } catch (IOException ioe) {
                 I18n msg = FileSystemI18n.couldNotWriteData;
                 throw new RepositorySourceException(source.getName(), msg.text(parentPath,
@@ -323,12 +347,8 @@ class FileSystemWorkspace extends PathWorkspace<PathNode> {
                                                                                source.getName(),
                                                                                ioe.getMessage()), ioe);
 
-            } finally {
-                try {
-                    if (fos != null) fos.close();
-                } catch (Exception ex) {
-                }
             }
+
             customPropertiesFactory.recordResourceProperties(context,
                                                              source.getName(),
                                                              Location.create(parentPath),
@@ -800,4 +820,68 @@ class FileSystemWorkspace extends PathWorkspace<PathNode> {
     protected Name nameValueFor( Property property ) {
         return nameFactory.create(property.getFirstValue());
     }
+
+    /**
+     * Representation of a file that is being written to the repository in a transaction that has not yet been fully committed.
+     */
+    class PendingFile {
+        private File targetFile;
+        private File pendingFile;
+
+        PendingFile( File targetFile ) {
+            this.targetFile = targetFile;
+            this.pendingFile = new File(repository.pendingFileDir(), UUID.randomUUID().toString());
+        }
+
+        /**
+         * Writes the content of the given {@link Binary binary object} into the temporary file
+         * 
+         * @param binary the object to write; may not be null
+         * @return the number of bytes written
+         * @throws IOException if the binary data cannot be read or written
+         */
+        public long write( Binary binary ) throws IOException {
+            final int BUFF_SIZE = 1024 * 4;
+            byte[] buff = new byte[BUFF_SIZE];
+
+            InputStream in = binary.getStream();
+            FileOutputStream out = new FileOutputStream(pendingFile);
+
+            try {
+                long count = 0;
+                int chunk = 0;
+                while (-1 != (chunk = in.read(buff, 0, buff.length))) {
+                    out.write(buff, 0, chunk);
+                    count += chunk;
+                }
+                return count;
+            } finally {
+                try {
+                    in.close();
+                } catch (Exception ignore) {
+                }
+                try {
+                    if (out != null) out.close();
+                } catch (IOException ignore) {
+                }
+            }
+
+        }
+
+        /**
+         * Moves the pending file into its final location.
+         * 
+         * @see FileSystemWorkspace#moveFile(File, File)
+         */
+        public void commit() {
+            moveFile(pendingFile, targetFile);
+        }
+
+        // A future step is to split the file system transaction into prepare and commit/rollback stages
+        // public void rollback() {
+        // pendingFile.delete();
+        // }
+
+    }
+
 }

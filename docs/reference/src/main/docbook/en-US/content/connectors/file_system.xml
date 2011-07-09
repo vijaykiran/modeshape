@@ -162,6 +162,11 @@
 					<entry>The name of the repository source, which is used by the &RepositoryService; when obtaining a &RepositoryConnection; by name.</entry>
 				</row>
 				<row>
+					<entry>nodeCachePolicy</entry>
+					<entry>Optional property that, if used, defines the cache policy to use for caching nodes within the connector.  
+					</entry>
+				</row>
+				<row>
 					<entry>predefinedWorkspaceNames</entry>
 					<entry>Optional property that, if used, defines names of the workspaces that are predefined and need not be created before being used.
 						This can be coupled with a "false" value for the "creatingWorkspaceAllowed" property to allow only the use of only predefined workspaces.
@@ -176,6 +181,21 @@
 					<entry>retryLimit</entry>
 					<entry>Optional property that, if used, defines the number of times that any single operation on a &RepositoryConnection; to this source should be retried
 						following a communication failure. The default value is '0'.</entry>
+				</row>
+				<row>
+					<entry>temporaryStoragePath</entry>
+					<entry><para>Optional property that allows administrators to specify a specific location for the file system connector's temporary
+				     storage. When writing file content, this connector first writes the content to a file in the temporary storage area. After
+     				 that write succeeds in full, the temporary file is moved to its final location in the workspace. This extra step is taken
+     				 so that an error or failure while writing the file does not cause corruption in the target file.
+     				 </para>
+     				 <para>
+	     				However, if the temporary storage area is located on a different file system than the file that will ultimately be written
+						to, the rename operation cannot be used and a separate file copy must occur. Therefore,
+						administrators should set the value of this path to some path in the same file system as the
+						workspace root path as specified by the <code>workspaceRootPath</code> property.
+     				 </para>
+     				 </entry>
 				</row>
 				<row>
 					<entry>updatesAllowed</entry>
@@ -248,12 +268,12 @@ config.repositorySource("FS Store")
             <mode:predefinedWorkspaceNames>staging</mode:predefinedWorkspaceNames>
             <mode:predefinedWorkspaceNames>dev</mode:predefinedWorkspaceNames>
       	    <!-- 
-      	    If desired, specify a cache policy that caches items in memory for 5 minutes (300000 ms).
+      	    If desired, specify a cache policy that caches items in memory for 5 minutes (300 s).
       	    This fragment can be left out if the connector should not cache any content.
       	    -->
-      	    <mode:cachePolicy jcr:name="cachePolicy" 
-      	      mode:classname="org.modeshape.graph.connector.path.cache.InMemoryWorkspaceCache$InMemoryCachePolicy"
-      	      mode:timeToLiveInMilliseconds="300000" />
+      	    <mode:cachePolicy jcr:name="nodeCachePolicy" 
+      	      mode:classname="org.modeshape.graph.connector.base.cache.InMemoryNodeCache$PathCachePolicy"
+      	      mode:timeToLive="300" />
         </mode:source>    
     </mode:sources>
 

@@ -34,7 +34,10 @@ import org.modeshape.jcr.api.SecurityContextCredentials;
  * These credentials are really only valid for the life of the {@link HttpServletRequest servlet request}, and thus should be used
  * to obtain a Session for each request.
  * </p>
+ * 
+ * @deprecated Use {@link org.modeshape.jcr.api.ServletCredentials} instead
  */
+@Deprecated
 public class ServletCredentials extends SecurityContextCredentials {
 
     private static final long serialVersionUID = 1L;

@@ -38,6 +38,7 @@ public final class FileSystemI18n {
     public static I18n pathForWorkspaceRootIsNotDirectory;
     public static I18n pathForWorkspaceRootCannotBeRead;
     public static I18n propertyIsRequired;
+    public static I18n errorSerializingCachePolicyInSource;
     public static I18n sameNameSiblingsAreNotAllowed;
     public static I18n nodeOrderingNotSupported;
     public static I18n onlyTheDefaultNamespaceIsAllowed;
@@ -82,6 +83,9 @@ public final class FileSystemI18n {
     public static I18n customPropertiesFactoryPropertyDescription;
     public static I18n customPropertiesFactoryPropertyLabel;
     public static I18n customPropertiesFactoryPropertyCategory;
+    public static I18n temporaryStoragePathPropertyDescription;
+    public static I18n temporaryStoragePathPropertyLabel;
+    public static I18n temporaryStoragePathPropertyCategory;
 
     // Writable messages
     public static I18n parentIsReadOnly;

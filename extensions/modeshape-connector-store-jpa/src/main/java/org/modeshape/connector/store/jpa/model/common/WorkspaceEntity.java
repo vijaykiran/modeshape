@@ -42,7 +42,7 @@ import org.modeshape.common.util.CheckArg;
 
 /**
  * A WorkspaceEntity represents a workspace that has been create in the store. WorkspaceEntity records are immutable and shared by
- * one or more enities.
+ * one or more entities.
  */
 @Entity
 @Table( name = "DNA_WORKSPACES" )
@@ -159,6 +159,7 @@ public class WorkspaceEntity {
         CheckArg.isNotNull(name, "name");
         Query query = manager.createNamedQuery("WorkspaceEntity.findByName");
         query.setParameter("name", name);
+        query.setHint("org.hibernate.cacheable", true);
         try {
             return (WorkspaceEntity)query.getSingleResult();
         } catch (NoResultException e) {

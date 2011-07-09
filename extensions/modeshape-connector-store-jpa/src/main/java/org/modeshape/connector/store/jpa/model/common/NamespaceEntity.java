@@ -39,7 +39,7 @@ import org.modeshape.common.util.CheckArg;
 
 /**
  * A NamespaceEntity represents a namespace that has been used in the store. NamespaceEntity records are immutable and shared by
- * one or more enities.
+ * one or more entities.
  */
 @Entity
 @Table( name = "DNA_NAMESPACES" )
@@ -162,6 +162,8 @@ public class NamespaceEntity {
         CheckArg.isNotNull(uri, "uri");
         Query query = manager.createNamedQuery("NamespaceEntity.findByUri");
         query.setParameter(1, uri);
+        query.setHint("org.hibernate.cacheable", true);
+
         try {
             return (NamespaceEntity)query.getSingleResult();
         } catch (NoResultException e) {

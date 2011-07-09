@@ -68,7 +68,6 @@ import org.modeshape.connector.store.jpa.util.Serializer;
 @Table( name = "MODE_SIMPLE_NODE" )
 @NamedQueries( {
     @NamedQuery( name = "NodeEntity.findByNodeUuid", query = "from NodeEntity as node where node.workspaceId = :workspaceId and node.nodeUuidString = :nodeUuidString" ),
-    @NamedQuery( name = "NodeEntity.findInWorkspace", query = "from NodeEntity as node where node.workspaceId = :workspaceId" ),
     @NamedQuery( name = "NodeEntity.deleteAllInWorkspace", query = "delete from NodeEntity where workspaceId = :workspaceId" ),
     @NamedQuery( name = "NodeEntity.withLargeValues", query = "from NodeEntity as node where node.workspaceId = :workspaceId and size(node.largeValues) > 0" )} )
 public class NodeEntity {

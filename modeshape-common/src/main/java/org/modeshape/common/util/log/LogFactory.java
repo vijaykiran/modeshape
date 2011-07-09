@@ -38,10 +38,10 @@ public abstract class LogFactory {
     static {
         try {
             ClassUtil.loadClassStrict("org.apache.log4j.Logger");
-            LOGFACTORY = new SLF4JLogFactory();
+            LOGFACTORY = new SLF4JLoggerFactory();
 
         } catch (ClassNotFoundException cnfe) {
-            LOGFACTORY = new JdkLogFactory();
+            LOGFACTORY = new JdkLoggerFactory();
         }
 
     }
@@ -51,8 +51,7 @@ public abstract class LogFactory {
     }
 
     /**
-     * Return a logger named corresponding to the class passed as parameter, using the statically bound {@link ILoggerFactory}
-     * instance.
+     * Return a logger named corresponding to the class passed as parameter.
      * 
      * @param clazz the returned logger will be named after clazz
      * @return logger
@@ -60,33 +59,11 @@ public abstract class LogFactory {
     public abstract Logger getLogger( Class<?> clazz );
 
     /**
-     * Return a logger named according to the name parameter using the statically bound {@link ILoggerFactory} instance.
+     * Return a logger named according to the name parameter.
      * 
      * @param name The name of the logger.
      * @return logger
      */
     public abstract Logger getLogger( String name );
 
-}
-
-final class SLF4JLogFactory extends LogFactory {
-
-    public Logger getLogger( Class<?> clazz ) {
-        return getLogger(clazz.getName());
-    }
-
-    public Logger getLogger( String name ) {
-        return new SLF4JLoggerImpl(name);
-    }
-
-}
-
-final class JdkLogFactory extends LogFactory {
-    public Logger getLogger( Class<?> clazz ) {
-        return getLogger(clazz.getName());
-    }
-
-    public Logger getLogger( String name ) {
-        return new JdkLoggerImpl(name);
-    }
 }

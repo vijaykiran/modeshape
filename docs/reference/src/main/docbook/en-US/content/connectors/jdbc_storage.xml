@@ -77,6 +77,22 @@
 					</entry>
 				</row>
 				<row>
+					<entry>cacheConcurrencyStrategy</entry>
+					<entry>
+						Optional property that specifies the cache concurrency strategy to use.  When Hibernate, ModeShape's default JPA provider, is used,
+						this value should be one of "read-only", "read-write", "nonstrict-read-write", or "transactional".
+						The default value is "read-write".
+					</entry>
+				</row>
+				<row>
+					<entry>cacheProviderClassName</entry>
+					<entry>
+						Optional property that specifies the class name of the cache provider.  The default value of "null" indicates that no caching should occur.  
+						Valid values for this property are JPA implementation-dependent.  When Hibernate, ModeShape's default JPA provider, is used, this value
+						is used to set the "hibernate.cache.provider_class" property.
+					</entry>
+				</row>								
+				<row>
 					<entry>cacheTimeToLiveInMilliseconds</entry>
 					<entry>Optional property that, if used, defines the maximum time in milliseconds that any information returned by this connector
 						is allowed to be cached before being considered invalid.  When not used, this source will not define a specific
@@ -137,16 +153,16 @@
 					</entry>
 				</row>
 				<row>
-                                       <entry>isolationLevel</entry>
-                                       <entry>Optional property that, if used, de
-                                       of the java.sql.Connection#TRANSACTION_* c
-                                       "TRANSACTION_READ_COMMITTED", "TRANSACTION
-                                       not all JDBC drivers support all isolation
-                                               When this property is not used, th
-                                               isolation level is currently set o
-                                       </entry>
-                               </row>
-                               <row>
+                     <entry>isolationLevel</entry>
+                     <entry>Optional property that, if used, denotes which
+                     of the java.sql.Connection#TRANSACTION_* constants should be used to control the transaction isolation level.  Valid values are:
+                     "TRANSACTION_READ_COMMITTED", "TRANSACTION_READ_UNCOMMITTED", "TRANSACTION_REPEATABLE_READ", "TRANSACTION_SERIALIZABLE", and "TRANSACTION_NONE".
+                     Note that not all JDBC drivers support all isolation levels.
+                             When this property is not used, the default
+                             isolation level is set to whichever isolation level was previously set on the connection.
+                     </entry>
+                 </row>
+                 <row>
 					<entry>largeValueSizeInBytes</entry>
 					<entry>
 						An advanced boolean property that controls the size of property values at which they are considered to be "large values".  
